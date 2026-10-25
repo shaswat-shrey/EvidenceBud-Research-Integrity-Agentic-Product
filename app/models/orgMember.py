@@ -9,9 +9,7 @@ from sqlalchemy import (
     )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, DeclarativeBase, mapped_column
-
-class Base(DeclarativeBase):
-    pass
+from app.models.Base import Base
 
 class OrganisationMember(Base):
     __tablename__ = "organisation_members"

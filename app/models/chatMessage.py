@@ -6,18 +6,13 @@ import uuid
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import UUID
 
-
-class Base(DeclarativeBase):
-    pass
-
-
 from sqlalchemy import ForeignKey, CheckConstraint, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, Text, DateTime, func, text
 import uuid
 from datetime import datetime
-
+from app.models.Base import Base
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
 

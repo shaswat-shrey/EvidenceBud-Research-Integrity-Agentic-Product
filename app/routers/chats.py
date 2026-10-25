@@ -1,5 +1,5 @@
 from fastapi import APIRouter, status, Depends, HTTPException
-from auth_dependencies import get_current_user
+from app.auth_dependencies import get_current_user
 from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, text, select
@@ -11,7 +11,8 @@ from app.database import get_db
 from app.schemas import (
     ChatCreate,
     ChatMessageResponse,
-    ChatResponse
+    ChatResponse,
+    ChatMessageCreate
 )
 
 router = APIRouter(
@@ -36,7 +37,7 @@ def create_chats(
     db: Session = Depends(get_db)
 ):
     user_id = UUID(str(current_user["id"]))
-
+    print("done-1")
     project = db.query(Project).filter(
         Project.id == project_id,
         Project.archived_at.is_(None),
@@ -49,32 +50,39 @@ def create_chats(
             ),
         ),
     ).params(user_id=str(user_id)).first()
-
+    print("done-2")
     if project is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found.",
         )
-
+    print("done-3")
     title = payload.title.strip()
     if not title:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Chat title cannot be blank.",
         )
-
+    print(title)
     chat = Chat(
         project_id=project_id,
         created_by_user_id=user_id,
         title=title,
     )
+    print(chat.project_id)
+    print(chat.created_by_user_id)
+    print(db.get_bind().url.database)
     try:
         db.add(chat)
+        print("added")
         db.commit()
+        print("comitted")
         db.refresh(chat)
+        print("refreshed")
         return chat
-    except Exception:
+    except Exception as e:
         db.rollback()
+        print("Issue:", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to create chat.",
@@ -170,11 +178,12 @@ def get_chat_messages(
 ######################################################################################################
 
 @router.post(
-    "/chats/{chat_id}/messages"
+    "/chats/{chat_id}/messages",
+    response_model=ChatMessageResponse,
 )
 def send_chat_messages(
     chat_id: UUID,
-    payload: ChatMessage,
+    payload: ChatMessageCreate,
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)                             
 ):
@@ -190,58 +199,58 @@ def send_chat_messages(
                       AND (
                           p.owner_user_id = :user_id
                           OR p.organisation_id IN (
-                              SELECT om.org_id
-                              FROM organisation_members om
-                              WHERE om.user_id = :user_id
+                            SELECT om.org_id
+                            FROM organisation_members om
+                            WHERE om.user_id = :user_id
                           )
                       )
                 """
                 )
-            chat = db.execute(
-                chat_query,
-                {
-                    "chat_id": chat_id,
-                    "user_id": current_user["id"]
-                }
-            ).mappings().first()
-            
-            if chat is None:
-                raise HTTPException(
-                    status_code=404,
-                    detail="Chat not found.",
-                )
-        
-            result = db.execute(
-                text(
-                    """
-                        INSERT INTO chat_messages (
-                            chat_id,
-                            author_user_id,
-                            role,
-                            content
-                        )
-                        VALUES (
-                            :chat_id,
-                            :user_id,
-                            'user',
-                            :content
-                        )
-                        RETURNING id, chat_id, author_user_id, role, content,
-                                metadata, created_at
-                    """
-                ),
-                {
-                    "chat_id": chat_id,
-                    "user_id": current_user["id"],
-                    "content": payload.content,
-                },
-            ).mappings().one()
-        
-            db.commit()
-            return {
-                "message": "Message sent successfully.",
-                "data": dict(result),
+        chat = db.execute(
+            chat_query,
+            {
+                "chat_id": chat_id,
+                "user_id": current_user["id"]
             }
+        ).mappings().first()
+            
+        if chat is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Chat not found.",
+            )
+        
+        result = db.execute(
+            text(
+                """
+                    INSERT INTO chat_messages (
+                        chat_id,
+                        author_user_id,
+                        role,
+                        content
+                    )
+                    VALUES (
+                        :chat_id,
+                        :user_id,
+                        'user',
+                        :content
+                    )
+                    RETURNING id, chat_id, author_user_id, role, content,
+                            metadata, created_at
+                """
+            ),
+            {
+                "chat_id": chat_id,
+                "user_id": current_user["id"],
+                "content": payload.content,
+            },
+        ).mappings().one()
+        
+        db.commit()
+        return {
+            "message": "Message sent successfully.",
+            "data": dict(result),
+        }
     except HTTPException:
         db.rollback()
         raise
@@ -255,4 +264,5 @@ def send_chat_messages(
         )
     
 
+    # "c0c77f77-571e-4959-a04e-93f567efb481"
     

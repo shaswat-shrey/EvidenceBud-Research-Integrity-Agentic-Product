@@ -71,6 +71,7 @@ class ChatResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     archived_at: datetime | None
+
 class ChatMessageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -81,3 +82,6 @@ class ChatMessageResponse(BaseModel):
     content: str
     metadata: dict
     created_at: datetime
+
+class ChatMessageCreate(BaseModel):
+    content: str = Field(min_length=1, max_length=20000)

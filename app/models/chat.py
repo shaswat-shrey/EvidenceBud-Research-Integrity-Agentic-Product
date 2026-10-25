@@ -5,10 +5,7 @@ from sqlalchemy import String, Text, DateTime, func, text
 import uuid
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import UUID
-
-
-class Base(DeclarativeBase):
-    pass
+from app.models.Base import Base
 
 class Chat(Base):
     __tablename__ = "chats"
