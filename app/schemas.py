@@ -57,3 +57,27 @@ class ProjectResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     archived_at: datetime | None
+
+class ChatCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+
+class ChatResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    project_id: UUID
+    created_by_user_id: UUID
+    title: str
+    created_at: datetime
+    updated_at: datetime
+    archived_at: datetime | None
+class ChatMessageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    chat_id: UUID
+    author_user_id: UUID | None
+    role: str
+    content: str
+    metadata: dict
+    created_at: datetime
