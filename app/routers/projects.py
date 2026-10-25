@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.auth_dependencies import get_current_user
 from app.database import get_db
-from app.models import Project
+from app.models.project import Project
 from app.schemas import ProjectCreate, ProjectResponse, ProjectUpdate
 
 router = APIRouter(

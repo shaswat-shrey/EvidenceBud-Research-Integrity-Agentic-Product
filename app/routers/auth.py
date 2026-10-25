@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 from app.auth_dependencies import get_current_user
 from app.database import get_db
 from app.email_service import send_verification_email
-from app.models import User
+from app.models.user import User
 from app.schemas import UserLogin, UserRegister, UserResponse, RefreshAccessTokens
 from app.security import (
     create_access_token,
