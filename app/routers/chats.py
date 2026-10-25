@@ -12,7 +12,8 @@ from app.schemas import (
     ChatCreate,
     ChatMessageResponse,
     ChatResponse,
-    ChatMessageCreate
+    ChatMessageCreate,
+    SendChatMessageResponse
 )
 
 router = APIRouter(
@@ -133,7 +134,7 @@ def list_projects_chats(
 ######################################################################################################
 
 @router.get(
-    "/api/v1/chats/{chat_id}/messages",
+    "/chats/{chat_id}/messages",
     response_model=list[ChatMessageResponse],
 )
 def get_chat_messages(
@@ -179,7 +180,7 @@ def get_chat_messages(
 
 @router.post(
     "/chats/{chat_id}/messages",
-    response_model=ChatMessageResponse,
+    response_model=SendChatMessageResponse,
 )
 def send_chat_messages(
     chat_id: UUID,
@@ -255,14 +256,13 @@ def send_chat_messages(
         db.rollback()
         raise
 
-    except Exception:
+    except Exception as e:
         db.rollback()
         # Log the exception server-side in production.
+        print(e)
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while sending the message.",
         )
     
-
-    # "c0c77f77-571e-4959-a04e-93f567efb481"
     

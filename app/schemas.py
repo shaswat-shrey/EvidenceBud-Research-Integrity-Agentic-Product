@@ -85,3 +85,7 @@ class ChatMessageResponse(BaseModel):
 
 class ChatMessageCreate(BaseModel):
     content: str = Field(min_length=1, max_length=20000)
+
+class SendChatMessageResponse(BaseModel):
+    message: str
+    data: ChatMessageResponse
