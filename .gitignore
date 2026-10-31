@@ -20,3 +20,4 @@ htmlcov/
 .DS_Store
 .vscode/
 .idea/
+storage/

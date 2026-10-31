@@ -195,16 +195,16 @@ def send_chat_messages(
                     FROM chats c
                     JOIN projects p ON p.id = c.project_id
                     WHERE c.id = :chat_id
-                      AND c.archived_at IS NULL
-                      AND p.archived_at IS NULL
-                      AND (
-                          p.owner_user_id = :user_id
-                          OR p.organisation_id IN (
-                            SELECT om.org_id
-                            FROM organisation_members om
-                            WHERE om.user_id = :user_id
-                          )
-                      )
+                    AND c.archived_at IS NULL
+                    AND p.archived_at IS NULL
+                    AND (
+                        p.owner_user_id = :user_id
+                        OR p.organisation_id IN (
+                        SELECT om.org_id
+                        FROM organisation_members om
+                        WHERE om.user_id = :user_id
+                        )
+                    )
                 """
                 )
         chat = db.execute(
