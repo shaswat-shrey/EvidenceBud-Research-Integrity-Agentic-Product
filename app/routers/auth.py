@@ -18,7 +18,12 @@ from app.security import (
     hash_session_token,
     verify_password,
 )
-
+from app.sql_queries.auth_queries import (
+    user_email_check,
+    email_insert_query,
+    org_member_insert_query,
+    email_token_insert_query
+)
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 
 
@@ -33,13 +38,8 @@ router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
     )
 def register_user(payload: UserRegister, db: Session = Depends(get_db)):
     email = str(payload.email).strip().lower()
-    query = text("""
-        SELECT id
-        FROM users
-        WHERE LOWER(email) = :email
-    """)
     existing_user = db.execute(
-        query,
+        user_email_check,
         {
             "email": email
         }
@@ -62,14 +62,7 @@ def register_user(payload: UserRegister, db: Session = Depends(get_db)):
 
         if payload.organisation_name is not None:
             organisation = db.execute(
-                text(
-                    """
-                        INSERT INTO organisations
-                        (name, slug, created_at) VALUES
-                        (:name, :slug, :created_at)
-                        RETURNING id
-                    """
-                ),
+                email_insert_query,
                 {
                     "name": payload.organisation_name.strip(),
                     "slug": payload.organisation_slug,
@@ -78,14 +71,7 @@ def register_user(payload: UserRegister, db: Session = Depends(get_db)):
             ).mappings().one()
 
             db.execute(
-                text(
-                    """
-                        INSERT INTO organisation_members
-                        (org_id, user_id, role)
-                        VALUES
-                        (:org_id, :user_id, :role)
-                    """
-                ),
+                org_member_insert_query,
                 {
                     "org_id": organisation["id"],
                     "user_id": user.id,
@@ -98,12 +84,7 @@ def register_user(payload: UserRegister, db: Session = Depends(get_db)):
 
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
         db.execute(
-            text("""
-                INSERT INTO email_verification_tokens
-                    (user_id, token_hash, expires_at)
-                VALUES
-                    (:user_id, :token_hash, :expires_at)
-            """),
+            email_token_insert_query,
             {
                 "user_id": user.id,
                 "token_hash": hash_token,
