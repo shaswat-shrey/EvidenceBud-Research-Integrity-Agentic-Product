@@ -18,7 +18,9 @@ from app.models import Document
 from app.services.file_storage import save_pdf, delete_Stored_file
 from app.sql_queries.documents_queries import (
     project_exist_access_query,
-    docs_fetch_query
+    docs_fetch_query,
+    fetch_document_query,
+    delete_document_query
 )
 router = APIRouter(
     prefix="/api/v1",
@@ -155,5 +157,99 @@ def list_uploaded_documents(
         "data": [dict(document) for document in documents]
     }
 
+
+#######################################################################################################
+# -------------------------------------- SINGLE DOCUMENT GET ------------------------------------------
+#######################################################################################################
+
+@router.get("/documents/{document_id}")
+def list_document_details(
+    document_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_id = UUID(str(current_user["id"]))
+
+    document = db.execute(
+        fetch_document_query, 
+        {
+            "document_id": document_id,
+            "user_id": user_id
+        }
+    ).mappings().first()
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found."
+        )
+
+    return {
+        "message": "Document details retrieved successfully.",
+        "data": dict(document)
+    }
+
+#######################################################################################################
+# -------------------------------------- DELETE DOCUMENT GET ------------------------------------------
+#######################################################################################################
+
+@router.delete("/documents/{document_id}")
+def delete_document(
+    document_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_id = UUID(str(current_user["id"]))
+    try:
+        deleted_document = db.execute(
+            delete_document_query,
+            {
+                "document_id": document_id,
+                "user_id": user_id
+            }
+        ).mappings().first()
+
+        if deleted_document is None:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found."
+            )
+        db.commit()
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        logger.exception("Failed to delete the document from the database.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to delete document."
+        )
+    file_deleted = True
+    try:
+        delete_Stored_file(deleted_document["storage_key"])
+    except Exception:
+        file_deleted = False
+        logger.exception(
+            "Document record deleted, but physical file clean up failed"
+        )
+
+    return {
+        "message": f"Document {deleted_document['filename']} deleted succesfully.",
+        "data": {
+            "document_id": str(deleted_document["id"]),
+            "filename": deleted_document["filename"],
+            "file_deleted": file_deleted
+        }
+    }
     
-    
+
+
+
+
+
+   
+
+
+      
+
+
