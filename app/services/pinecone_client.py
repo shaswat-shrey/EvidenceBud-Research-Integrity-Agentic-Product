@@ -1,14 +1,15 @@
 import os
 from pinecone import Pinecone
+from dotenv import load_dotenv
 
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+load_dotenv()
+pc = Pinecone(
+    api_key=os.environ["PINECONE_API_KEY"]
+)
+
 PINECONE_INDEX_NAME = os.getenv(
     "PINECONE_INDEX_NAME",
-    "evidbud-chunks"
+    "evidenceos-chunks"
 )
-if not PINECONE_API_KEY:
-    raise RuntimeError("PINECONE_API_KEY is missing.")
-pc = Pinecone(api_key=PINECONE_API_KEY)
-
 def get_pinecone_index():
-    return pc.index(PINECONE_INDEX_NAME)
+    return pc.Index(PINECONE_INDEX_NAME)

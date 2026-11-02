@@ -17,11 +17,12 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 
-def process_document(document_id: UUID, db: Session = Depends(get_db)) -> None:
+def process_document(document_id: UUID) -> None:
     """
     Extract, chunk, persist and index an uploaded PDF.
     Uses its own database session.
     """
+    db = SessionLocal()
     try:
         # 1. Fetch the document
         document = (

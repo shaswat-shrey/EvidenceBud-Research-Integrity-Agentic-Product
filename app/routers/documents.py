@@ -8,10 +8,12 @@ from fastapi import (
     HTTPException,
     UploadFile,
     status,
+    BackgroundTasks,
 )
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.services.document_processing_service import process_document
 from app.auth_dependencies import get_current_user
 from app.database import get_db
 from app.models import Document
@@ -38,6 +40,7 @@ logger = logging.getLogger(__name__)
 )
 async def upload_document(
     project_id: UUID,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -80,6 +83,10 @@ async def upload_document(
         db.commit()
         db.refresh(document)
 
+        background_tasks.add_task(
+            process_document,
+            document.id
+        )
         # 4. Return the document information.
         return {
             "message": "Document uploaded successfully.",
