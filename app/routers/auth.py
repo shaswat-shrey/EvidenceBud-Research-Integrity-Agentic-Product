@@ -22,7 +22,15 @@ from app.sql_queries.auth_queries import (
     user_email_check,
     email_insert_query,
     org_member_insert_query,
-    email_token_insert_query
+    email_token_insert_query,
+    login_query,
+    insert_session_query,
+    email_verification_token_query,
+    email_verfied_upadte_query,
+    session_query,
+    revoke_query,
+    insert_session_query,
+    logout_session_query,
 )
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 
@@ -127,13 +135,9 @@ def register_user(payload: UserRegister, db: Session = Depends(get_db)):
 @router.post("/login",)
 def login_user(payload: UserLogin, db: Session = Depends(get_db)):
     email = str(payload.email).strip().lower()
-    query = text("""
-        SELECT id, email, password_hash, is_active, email_verified
-        FROM users
-        WHERE LOWER(email) = :email
-    """)
+    
     user = db.execute(
-        query,
+        login_query,
         {"email": email}
     ).mappings().first()
     if not user or not verify_password(payload.password, user["password_hash"]):
@@ -159,12 +163,6 @@ def login_user(payload: UserLogin, db: Session = Depends(get_db)):
     now = datetime.now(timezone.utc)
     expire_at = now + timedelta(days=7)
 
-    insert_session_query = text(
-        """
-        INSERT INTO sessions (user_id, token_hash, expires_at, last_seen_at)
-        VALUES (:user_id, :token_hash, :expires_at, :last_seen_at)
-        """
-    )
     try:
         db.execute(
             insert_session_query,
@@ -206,14 +204,7 @@ def verify_email(token: str = Query(..., min_length=20), db: Session = Depends(g
     try:
         # Consume the token only if it is valid, unused and unexpired.
         result = db.execute(
-            text("""
-                UPDATE email_verification_tokens
-                SET used_at = NOW()
-                WHERE token_hash = :token_hash
-                  AND used_at IS NULL
-                  AND expires_at > NOW()
-                RETURNING user_id
-            """),
+            email_verification_token_query,
             {"token_hash": token_hash},
         ).mappings().first()
 
@@ -224,12 +215,7 @@ def verify_email(token: str = Query(..., min_length=20), db: Session = Depends(g
                 detail="Invalid, expired, or already-used verification link.",
             )
         db.execute(
-            text("""
-                UPDATE users
-                SET email_verified = TRUE,
-                    updated_at = NOW()
-                WHERE id = :user_id
-            """),
+            email_verfied_upadte_query,
             {"user_id": result["user_id"]},
         )
 
@@ -277,22 +263,7 @@ def refresh_access_token(
     now = datetime.now(timezone.utc)
 
     try:
-        session_query = text(
-        """
-            SELECT
-                s.id AS session_id,
-                s.user_id,
-                s.expires_at,
-                s.revoked_at,
-                u.email,
-                u.is_active,
-                u.email_verified
-            FROM sessions AS s
-            JOIN users AS u ON u.id = s.user_id
-            WHERE s.token_hash = :token_hash
-            FOR UPDATE OF s
-        """
-        )
+        
         session = db.execute(
             session_query,
             {
@@ -324,14 +295,7 @@ def refresh_access_token(
 
         expire_at = now + timedelta(days=7)
 
-        revoke_query = text(
-            """
-                UPDATE sessions
-                SET revoked_at = :revoked_at
-                WHERE id = :session_id
-                AND revoked_at IS NULL
-            """
-        )
+        
         db.execute(
             revoke_query,
             {
@@ -339,24 +303,9 @@ def refresh_access_token(
                 "session_id": session["session_id"],
             }
         )
-        insert_query = text(
-            """
-                INSERT INTO sessions (
-                    user_id,
-                    token_hash,
-                    expires_at,
-                    last_seen_at
-                )
-                VALUES (
-                    :user_id,
-                    :token_hash,
-                    :expires_at,
-                    :last_seen_at
-                )
-            """
-        )
+        
         db.execute(
-            insert_query,
+            insert_session_query,
             {
                 "user_id": session["user_id"],
                 "token_hash": new_refresh_hash,
@@ -397,19 +346,9 @@ def logout(
     refresh_token_hash = hash_refresh_token(refresh_token)
     now = datetime.now(timezone.utc)
 
-    query = text(
-        """
-            UPDATE sessions
-            SET revoked_at = :revoked_at
-            WHERE token_hash = :token_hash
-            AND user_id = :user_id
-            AND revoked_at is NULL
-            RETURNING id
-        """
-        )
     try:
         result = db.execute(
-            query,
+            logout_session_query,
             {
                 "revoked_at": now,
                 "token_hash": refresh_token_hash,
