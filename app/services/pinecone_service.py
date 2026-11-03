@@ -1,6 +1,6 @@
 from app.services.pinecone_client import get_pinecone_index
 
-BATCH_SIZE = 100
+BATCH_SIZE = 50
 
 def index_document_chunks(
         project_id, 
